@@ -1,59 +1,39 @@
-'use client';
+"use client";
 
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
-import { useAuth } from '../../context/AuthContext';
-import { useState } from 'react';
+import { useState } from "react";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "../../_utils/firebase";
+import { useUserAuth } from "../../_utils/auth-context";
 
-export default function TaskForm() {
-  const [taskText, setTaskText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+export default function TaskForm({ refreshTodos }) {
+  const [text, setText] = useState("");
+  const { user } = useUserAuth();
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
-    if (!taskText.trim() || !user) return;
+    if (!text.trim() || !user) return;
 
-    setLoading(true);
-    
-    try {
-      const collectionRef = collection(db, "todos");
+    await addDoc(collection(db, "todos"), {
+      text,
+      completed: false,
+      ownerId: user.uid,
+      createdAt: serverTimestamp(),
+    });
 
-      const newTodo = {
-        text: taskText,
-        completed: false,
-        timestamp: new Date(),
-        ownerId: user.uid, 
-      };
-
-      await addDoc(collectionRef, newTodo);
-
-      setTaskText('');
-    } catch (error) {
-      console.error("Error adding document: ", error);
-      alert("Failed to add task.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setText("");
+    refreshTodos(); // ✅ CORRECT
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-4 p-4 bg-white rounded-lg shadow-md">
+    <form onSubmit={handleSubmit} className="flex gap-2 mb-6">
       <input
-        type="text"
-        value={taskText}
-        onChange={(e) => setTaskText(e.target.value)}
-        placeholder="What needs to be done?"
-        required
-        className="flex-grow p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-        disabled={loading}
+        className="border p-2 flex-grow"
+        placeholder="Add a new task"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
       />
-      <button
-        type="submit"
-        disabled={loading}
-        className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 transition duration-150 disabled:opacity-50"
-      >
-        {loading ? 'Adding...' : 'Add Task'}
+      <button className="bg-blue-600 text-white px-4 rounded cursor-pointer hover:bg-blue-700">
+        Add
       </button>
     </form>
   );

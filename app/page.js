@@ -1,40 +1,47 @@
-import AuthGuard from './components/AuthGuard';
-import LogoutButton from './components/LogoutButton'; 
-import TaskForm from './components/TaskForm';
-import TaskList from './components/TaskList';
-import { useAuth } from '../context/AuthContext';
+"use client";
+
+import { useEffect, useState } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../_utils/firebase";
+import { useUserAuth } from "../_utils/auth-context";
+import TaskForm from "./components/TaskForm";
+import TaskList from "./components/TaskList";
 
 export default function DashboardPage() {
+  const { user } = useUserAuth();
+  const [todos, setTodos] = useState([]);
+
+  async function fetchTodos() {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "todos"),
+      where("ownerId", "==", user.uid)
+    );
+
+    const snapshot = await getDocs(q);
+    const todosData = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    setTodos(todosData);
+  }
+
+  useEffect(() => {
+    fetchTodos();
+  }, [user]);
+
+  if (!user) {
+    return <p className="text-center mt-10">You must be logged in.</p>;
+  }
+
   return (
-    <AuthGuard>
-      <div className="max-w-xl mx-auto p-8"> 
-        
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">TaskFlow Dashboard</h1>
-          <LogoutButton />
-        </div>
-        
-        <UserInfo />
-        
-        <TaskForm />
+    <main className="max-w-xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">TaskTr4cker</h1>
 
-        <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">Your Tasks</h2>
-            <TaskList />
-        </div>
-      </div>
-    </AuthGuard>
+      <TaskForm refreshTodos={fetchTodos} />
+      <TaskList todos={todos} />
+    </main>
   );
-}
-
-function UserInfo() {
-    const { user } = useAuth();
-    if (user) {
-        return (
-            <p className="text-gray-600">
-                Logged in as: <span className="font-semibold">{user.email}</span>
-            </p>
-        );
-    }
-    return null;
 }
